@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Community Vaccination Tracker | CodeZilla '25</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <style>
+        #map { height: 400px; }
+        .vaccine-card {
+            transition: all 0.3s ease;
+        }
+        .vaccine-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .reminder-badge {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+        /* Custom styles for table */
+        .table-container {
+            overflow-x: auto;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #4a5568; /* gray-700 */
+        }
+        .data-table th {
+            background-color: #2d3748; /* gray-800 */
+            color: #cbd5e0; /* gray-300 */
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        .data-table tbody tr:hover {
+            background-color: #2a4365; /* blue-900 darker */
+        }
+        .data-table tbody tr:nth-child(even) {
+            background-color: #1a202c; /* gray-900 */
+        }
+        .data-table tbody tr:nth-child(odd) {
+            background-color: #2d3748; /* gray-800 */
+        }
+        .data-table td {
+            color: #e2e8f0; /* gray-200 */
+        }
+        .delete-btn {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .delete-btn:hover {
+            background-color: #dc2626; /* red-600 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- Navigation -->
+    <nav class="bg-gray-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <span class="text-xl font-bold text-emerald-400">Community Vaccination Tracker</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a class="text-emerald-400 font-medium" href="#dashboard">Dashboard</a>
+                    <a class="text-gray-500 hover:text-emerald-400" href="#reports">Reports</a>
+                    <a class="text-gray-500 hover:text-emerald-400" href="#coverage">Coverage Map</a>
+                    <a class="text-gray-500 hover:text-emerald-400" href="#records-list">All Records</a>
+                    <a class="text-gray-500 hover:text-emerald-400" href="#hesitancy-feedback-display">Hesitancy</a>
+                    <a class="text-gray-500 hover:text-emerald-400" href="#admin-panel">Admin</a>
+                </div>
+                <button class="md:hidden flex items-center">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="bg-emerald-700 text-white py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h1 class="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
+                    Community Vaccination Tracking System
+                </h1>
+                <p class="mt-3 max-w-md mx-auto text-blue-100 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+                    Monitor vaccination coverage, visualize data, and send reminders to improve community health outcomes.
+                </p>
+                <div class="mt-5 sm:mt-8 flex justify-center gap-3">
+                    <button class="px-8 py-3 border border-transparent text-base font-medium rounded-md text-emerald-500 bg-gray-800 hover:bg-blue-50 md:py-4 md:text-lg md:px-10" onclick="showDataEntryModal()">
+                        Record Vaccination
+                    </button>
+                    <button class="px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-emerald-500 hover:bg-emerald-600 md:py-4 md:text-lg md:px-10" onclick="simulateOutbreakRisk()">
+                        Simulate Outbreak Risk
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Summary Cards -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12" id="dashboard">
+        <h2 class="text-3xl font-extrabold text-white mb-8 text-center">Dashboard Overview</h2>
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4" id="dashboard-summary-cards">
+            <!-- Cards will be dynamically loaded here -->
+        </div>
+    </div>
+
+    <!-- Reports Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-gray-800 rounded-xl" id="reports">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-extrabold text-white">Vaccination Coverage Reports</h2>
+            <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+                Visualize vaccination rates across demographics and locations
+            </p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Age Group Chart -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-white mb-4">Vaccination by Age Group</h3>
+                <canvas height="400" id="ageGroupChart"></canvas>
+            </div>
+            <!-- Literacy Chart -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-white mb-4">Vaccination by Literacy Status</h3>
+                <canvas height="400" id="literacyChart"></canvas>
+            </div>
+            <!-- Gender Chart -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-white mb-4">Vaccination by Gender</h3>
+                <canvas height="400" id="genderChart"></canvas>
+            </div>
+            <!-- Vaccination Trend Chart -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow col-span-1 lg:col-span-2">
+                <h3 class="text-lg font-medium text-white mb-4">Vaccination Trend Over Time</h3>
+                <canvas height="400" id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <div class="mt-12 text-center">
+            <h3 class="text-2xl font-extrabold text-white mb-4">Specific Statistics</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-gray-700 p-6 rounded-lg shadow">
+                    <h4 class="text-lg font-medium text-white mb-2">Stats by Disease</h4>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <select id="diseaseSelect" class="bg-gray-900 text-white p-2 rounded-md flex-grow">
+                            <!-- Options populated by JS -->
+                        </select>
+                        <button onclick="getDiseaseStats()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md">Get Stats</button>
+                    </div>
+                    <p id="diseaseStatsResult" class="text-gray-300"></p>
+                </div>
+                <div class="bg-gray-700 p-6 rounded-lg shadow">
+                    <h4 class="text-lg font-medium text-white mb-2">Group Stats By</h4>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <select id="groupByFieldSelect" class="bg-gray-900 text-white p-2 rounded-md flex-grow">
+                            <option value="age_group">Age Group</option>
+                            <option value="location">Location</option>
+                        </select>
+                        <button onclick="getGroupByStats()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md">Get Stats</button>
+                    </div>
+                    <div id="groupByStatsResult" class="text-gray-300 text-left"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coverage Map Section -->
+    <section class="py-10 px-5" id="coverage">
+        <div class="bg-gray-800 max-w-7xl mx-auto rounded-xl px-6 py-10">
+            <div class="text-center mb-6">
+                <h2 class="text-3xl font-bold text-white mb-2">Community Coverage Map</h2>
+                <p class="text-gray-400">Geographic visualization of vaccination rates by neighborhood</p>
+            </div>
+            <div id="map" class="w-full rounded-lg shadow-lg" style="height: 500px;"></div>
+        </div>
+    </section>
+
+    <!-- Vaccine Types Section (Static for now, as no API for this specific data) -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-extrabold text-white">Available Vaccines</h2>
+            <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+                Track different vaccine types and their community adoption
+            </p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Vaccine Card 1 -->
+            <div class="bg-gray-800 rounded-lg shadow-md overflow-hidden vaccine-card">
+                <div class="bg-emerald-600 px-4 py-3">
+                    <h3 class="text-lg font-semibold text-white">Pfizer-BioNTech</h3>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">mRNA</span>
+                        <span class="text-sm text-gray-500">2 doses required</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-gray-500">Community Uptake:</span>
+                        <span class="font-semibold">68%</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2.5">
+                        <div class="bg-emerald-600 h-2.5 rounded-full" style="width: 68%"></div>
+                    </div>
+                    <div class="mt-4"></div>
+                </div>
+            </div>
+            <!-- Vaccine Card 2 -->
+            <div class="bg-gray-800 rounded-lg shadow-md overflow-hidden vaccine-card">
+                <div class="bg-purple-600 px-4 py-3">
+                    <h3 class="text-lg font-semibold text-white">Moderna</h3>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded">mRNA</span>
+                        <span class="text-sm text-gray-500">2 doses required</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-gray-500">Community Uptake:</span>
+                        <span class="font-semibold">56%</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2.5">
+                        <div class="bg-purple-600 h-2.5 rounded-full" style="width: 56%"></div>
+                    </div>
+                    <div class="mt-4"></div>
+                </div>
+            </div>
+            <!-- Vaccine Card 3 -->
+            <div class="bg-gray-800 rounded-lg shadow-md overflow-hidden vaccine-card">
+                <div class="bg-green-600 px-4 py-3">
+                    <h3 class="text-lg font-semibold text-white">Johnson &amp; Johnson</h3>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Viral Vector</span>
+                        <span class="text-sm text-gray-500">1 dose required</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-gray-500">Community Uptake:</span>
+                        <span class="font-semibold">42%</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2.5">
+                        <div class="bg-green-600 h-2.5 rounded-full" style="width: 42%"></div>
+                    </div>
+                    <div class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reminders Section -->
+    <div class="bg-gray-800 shadow rounded-lg p-6 mt-8 max-w-7xl mx-auto" id="reminder">
+        <h2 class="text-2xl font-semibold text-white mb-2">Vaccination Stock Update</h2>
+        <p class="text-gray-400 mb-4">You will receive updates here whenever new vaccination stock is added to the system.</p>
+        <ul class="space-y-2" id="vaccine-stock-list">
+            <!-- Stock updates will be dynamically loaded here -->
+        </ul>
+    </div>
+
+    <!-- All Records Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-gray-800 rounded-xl mt-12" id="records-list">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-extrabold text-white">All Vaccination Records</h2>
+            <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+                View and export all submitted vaccination data.
+            </p>
+        </div>
+        <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
+            <div class="flex items-center space-x-2">
+                <label for="startDate" class="text-gray-300">Start Date:</label>
+                <input type="date" id="startDate" class="bg-gray-900 text-white p-2 rounded-md">
+            </div>
+            <div class="flex items-center space-x-2">
+                <label for="endDate" class="text-gray-300">End Date:</label>
+                <input type="date" id="endDate" class="bg-gray-900 text-white p-2 rounded-md">
+            </div>
+            <button onclick="loadAllRecords()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md">Filter Records</button>
+            <button onclick="exportRecords()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">Export to CSV</button>
+        </div>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name (Hashed)</th>
+                        <th>Age Group</th>
+                        <th>Location</th>
+                        <th>Disease</th>
+                        <th>Vaccine Name</th>
+                        <th>Dose 1 Date</th>
+                        <th>Dose 2 Date</th>
+                        <th>Booster Date</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="recordsTableBody">
+                    <!-- Records will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Vaccination Hesitancy Feedback Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-gray-800 rounded-xl mt-12" id="hesitancy-feedback">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-extrabold text-white" style="text-shadow: 0 0 10px #f87171;">Vaccination Hesitancy Feedback</h2>
+            <p class="mt-4 max-w-2xl text-xl text-gray-400 mx-auto">
+                Help us understand and address concerns about vaccination in your community. Your feedback is anonymous.
+            </p>
+        </div>
+        <form class="bg-gray-800 p-6 rounded-lg shadow-md max-w-3xl mx-auto space-y-6"
+              id="hesitancyForm"
+              onsubmit="submitHesitancyForm(event)">
+            <div>
+                <label class="block text-sm font-medium text-gray-300" for="ageGroupHesitancy">Your Age Group</label>
+                <select class="mt-1 block w-full border-gray-600 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-black" id="ageGroupHesitancy" name="ageGroupHesitancy">
+                    <option value="">Select</option>
+                    <option value="0-12">0-12</option>
+                    <option value="13-19">13-19</option>
+                    <option value="20-35">20-35</option>
+                    <option value="36-50">36-50</option>
+                    <option value="51-65">51-65</option>
+                    <option value="65+">65+</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300" for="reason">What are your main concerns or reasons for hesitancy?</label>
+                <textarea class="mt-1 block w-full border border-gray-600 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-black" id="reason" name="reason" placeholder="e.g., Fear of side effects, Lack of information, Religious beliefs, etc." rows="4"></textarea>
+            </div>
+            <div class="text-right">
+                <button class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium" type="submit">
+                    Submit Feedback
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Hesitancy Feedback Display (Admin/Public View) -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-gray-800 rounded-xl mt-12" id="hesitancy-feedback-display">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-extrabold text-white">Hesitancy Feedback Responses</h2>
+            <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+                Anonymous feedback from the community regarding vaccination hesitancy.
+            </p>
+            <button onclick="loadHesitancyResponses()" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md">Refresh Responses</button>
+        </div>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Age Group</th>
+                        <th>Reason</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="hesitancyResponsesTableBody">
+                    <!-- Hesitancy responses will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Admin Panel Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-gray-800 rounded-xl mt-12" id="admin-panel">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-extrabold text-red-400">Admin Panel</h2>
+            <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+                Manage vaccination records (requires admin password).
+            </p>
+        </div>
+        <div class="bg-gray-700 p-6 rounded-lg shadow-md max-w-md mx-auto space-y-4">
+            <h3 class="text-xl font-semibold text-white mb-4">Delete Record by ID</h3>
+            <div>
+                <label class="block text-sm font-medium text-gray-300" for="recordIdToDelete">Record ID</label>
+                <input type="text" id="recordIdToDelete" class="mt-1 block w-full bg-gray-900 text-white p-2 rounded-md" placeholder="Enter record ID">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300" for="adminPassword">Admin Password</label>
+                <input type="password" id="adminPassword" class="mt-1 block w-full bg-gray-900 text-white p-2 rounded-md" placeholder="Enter admin password">
+            </div>
+            <button onclick="deleteRecord()" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">Delete Record</button>
+        </div>
+    </div>
+
+
+    <!-- Data Entry Modal -->
+    <div class="fixed z-10 inset-0 overflow-y-auto hidden" id="dataEntryModal">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div aria-hidden="true" class="fixed inset-0 transition-opacity">
+                <div class="absolute inset-0 bg-gray-900 opacity-75"></div>
+            </div>
+            <span aria-hidden="true" class="hidden sm:inline-block sm:align-middle sm:h-screen">​</span>
+            <div class="inline-block align-bottom bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-white mb-4">
+                                Record New Vaccination
+                            </h3>
+                            <div class="mt-2">
+                                <form id="vaccinationForm">
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-300" for="vaccineType">Disease</label>
+                                        <select class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-600 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md text-black" id="vaccineType" name="vaccineType">
+                                            <!-- Options populated by JS from /diseases/all -->
+                                        </select>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-300" for="vaccineName">Vaccine Name</label>
+                                        <input class="mt-1 focus:ring-emerald-500 focus:border-emerald-500 block w-full shadow-sm sm:text-sm border-gray-600 rounded-md text-black" id="vaccineName" name="vaccineName" type="text" placeholder="e.g., Covaxin, Pfizer"/>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-300" for="dose1Date">Dose 1 Date</label>
+                                        <input class="mt-1 focus:ring-emerald-500 focus:border-emerald-500 block w-full shadow-sm sm:text-sm border-gray-600 rounded-md text-black" id="dose1Date" name="dose1Date" type="date"/>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-300" for="dose2Date">Dose 2 Date (Optional)</label>
+                                        <input class="mt-1 focus:ring-emerald-500 focus:border-emerald-500 block w-full shadow-sm sm:text-sm border-gray-600 rounded-md text-black" id="dose2Date" name="dose2Date" type="date"/>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-300" for="boosterDate">Booster Date (Optional)</label>
+                                        <input class="mt-1 focus:ring-emerald-500 focus:border-emerald-500 block w-full shadow-sm sm:text-sm border-gray-600 rounded-md text-black" id="boosterDate" name="boosterDate" type="date"/>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div class="mb-4">
+                                            <label class="block text-sm font-medium text-gray-300" for="ageGroup">Age Group</label>
+                                            <select class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-600 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md text-black" id="ageGroup" name="ageGroup">
+                                                <option value="0-12">0-12 years</option>
+                                                <option value="13-19">13-19 years</option>
+                                                <option value="20-35">20-35 years</option>
+                                                <option value="36-50">36-50 years</option>
+                                                <option value="51-65">51-65 years</option>
+                                                <option value="65+">65+ years</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-4">
+                                            <label class="block text-sm font-medium text-gray-300" for="gender">Gender</label>
+                                            <select class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-600 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md text-black" id="gender" name="gender">
+                                                <option value="male">Male</option>
+                                                <option value="female">Female</option>
+                                                <option value="other">Other</option>
+                                                <option value="prefer-not">Prefer not to say</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-300" for="location">Location (Neighborhood)</label>
+                                        <input class="mt-1 focus:ring-emerald-500 focus:border-emerald-500 block w-full shadow-sm sm:text-sm border-gray-600 rounded-md text-black" id="location" name="location" type="text"/>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-300" for="personName">Person's Name (for anonymization)</label>
+                                        <input class="mt-1 focus:ring-emerald-500 focus:border-emerald-500 block w-full shadow-sm sm:text-sm border-gray-600 rounded-md text-black" id="personName" name="personName" placeholder="e.g., John Doe" type="text"/>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:ml-3 sm:w-auto sm:text-sm" onclick="submitVaccination()" type="button">
+                        Submit
+                    </button>
+                    <button class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-600 shadow-sm px-4 py-2 bg-gray-800 text-base font-medium text-gray-300 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" onclick="hideDataEntryModal()" type="button">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Outbreak Simulation Modal -->
+    <div class="fixed z-10 inset-0 overflow-y-auto hidden" id="outbreakModal">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div aria-hidden="true" class="fixed inset-0 transition-opacity">
+                <div class="absolute inset-0 bg-gray-900 opacity-75"></div>
+            </div>
+            <span aria-hidden="true" class="hidden sm:inline-block sm:align-middle sm:h-screen">​</span>
+            <div class="inline-block align-bottom bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-white">
+                                Outbreak Risk Simulation
+                            </h3>
+                            <div class="mt-4">
+                                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 rounded">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0">
+                                            <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                <path clip-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" fill-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm text-yellow-700">
+                                                Based on current vaccination coverage rates, we estimate potential outbreak risks.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="space-y-4" id="simulationResults">
+                                    <div>
+                                        <h4 class="font-medium text-white mb-2">Current Vaccination Coverage:</h4>
+                                        <div class="w-full bg-gray-700 rounded-full h-4">
+                                            <div class="bg-green-600 h-4 rounded-full" style="width: 72%"></div>
+                                        </div>
+                                        <p class="text-sm text-gray-500 mt-1">72% coverage (Goal: &gt;80% for herd immunity)</p>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-white mb-2">Projected Outbreak Risk:</h4>
+                                        <div class="flex items-center">
+                                            <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path clip-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" fill-rule="evenodd"></path>
+                                            </svg>
+                                            <span class="ml-2 font-medium">Moderate Risk</span>
+                                        </div>
+                                        <p class="text-sm text-gray-500 mt-1">Areas with vaccination rates below 65% are at higher risk</p>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-white mb-2">Vulnerable Areas:</h4>
+                                        <ul class="list-disc pl-5 text-sm text-gray-300">
+                                            <li>Northwest District (59% coverage)</li>
+                                            <li>Industrial Zone (62% coverage)</li>
+                                            <li>University Area (61% coverage)</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-white mb-2">Recommendations:</h4>
+                                        <ul class="list-disc pl-5 text-sm text-gray-300">
+                                            <li>Targeted vaccination campaigns in low-coverage areas</li>
+                                            <li>Increase community awareness programs</li>
+                                            <li>Set up pop-up vaccination clinics</li>
+                                            <li>Implement reminder systems for second doses</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:ml-3 sm:w-auto sm:text-sm" onclick="hideOutbreakModal()" type="button">
+                        Done
+                    </button>
+                    <button class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-600 shadow-sm px-4 py-2 bg-gray-800 text-base font-medium text-gray-300 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" onclick="downloadSimulationReport()" type="button">
+                        Download Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 mt-16">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold text-white">CodeZilla '25</h3>
+                    <p class="mt-4 text-gray-500 text-sm">
+                        A 24-hour hackathon challenging participants to create innovative solutions for real-world problems.
+                    </p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-white">Developed By</h3>
+                    <p class="mt-4 text-gray-500 text-sm">
+                        Team Codex
+                    </p>
+                </div>
+            </div>
+            <div class="mt-8 pt-8 border-t border-gray-700 text-center">
+                <p class="text-gray-500 text-sm">
+                    This system is designed anonymously track community vaccination coverage for public health purposes.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const BASE_URL = "http://127.0.0.1:8000"; // Use current origin to work with Docker networking
+
+        // Helper function to fetch data from API
+        async function fetchData(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${BASE_URL}${endpoint}`, options);
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error(`HTTP error! status: ${response.status}, body: ${errorBody}`);
+                    throw new Error(`Failed to fetch ${endpoint}: ${response.status} ${response.statusText}`);
+                }
+                // Check if response is JSON before parsing
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return await response.json();
+                } else {
+                    // For non-JSON responses (like CSV), return text or blob
+                    return await response.blob(); // Or .text() if expecting plain text
+                }
+            } catch (error) {
+                console.error(`Error fetching data from ${endpoint}:`, error);
+                alert(`Error: ${error.message || 'Network error. Please try again later.'}`);
+                return null;
+            }
+        }
+
+        // Dashboard Summary Cards
+        async function loadDashboardSummary() {
+            const data = await fetchData("/api/dashboard-data");
+            if (!data) return;
+
+            const cardsContainer = document.getElementById('dashboard-summary-cards');
+            cardsContainer.innerHTML = ''; // Clear existing cards
+
+            const cardData = [
+                {
+                    title: "Fully Vaccinated",
+                    percentage: data.fully_vaccinated.percentage,
+                    change: data.fully_vaccinated.change,
+                    trend: data.fully_vaccinated.trend,
+                    bgColor: "bg-green-500",
+                    iconPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                },
+                {
+                    title: "Partially Vaccinated",
+                    percentage: data.partially_vaccinated.percentage,
+                    change: data.partially_vaccinated.change,
+                    trend: data.partially_vaccinated.trend,
+                    bgColor: "bg-yellow-500",
+                    iconPath: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                },
+                {
+                    title: "Not Vaccinated",
+                    percentage: data.not_vaccinated.percentage,
+                    change: data.not_vaccinated.change,
+                    trend: data.not_vaccinated.trend,
+                    bgColor: "bg-red-500",
+                    iconPath: "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                },
+                {
+                    title: "Records Today",
+                    percentage: data.records_today.count, // Using count for this card
+                    change: data.records_today.change,
+                    period: data.records_today.period,
+                    bgColor: "bg-purple-500",
+                    iconPath: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                }
+            ];
+
+            cardData.forEach(card => {
+                const trendColor = card.trend === 'increase' ? 'text-green-600' : 'text-red-600';
+                const trendIcon = card.trend === 'increase' ?
+                    `<svg class="self-center flex-shrink-0 h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" fill-rule="evenodd"></path></svg>` :
+                    `<svg class="self-center flex-shrink-0 h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>`;
+                const changeText = card.title === "Records Today" ? `${card.change} ${card.period}` : `${card.change}% from last month`;
+
+                const cardHtml = `
+                    <div class="bg-gray-800 overflow-hidden shadow rounded-lg">
+                        <div class="px-4 py-5 sm:p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 ${card.bgColor} rounded-md p-3">
+                                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="${card.iconPath}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dt class="text-sm font-medium text-gray-500 truncate">
+                                        ${card.title}
+                                    </dt>
+                                    <dd class="flex items-baseline">
+                                        <div class="text-2xl font-semibold text-white">
+                                            ${card.title === "Records Today" ? card.percentage : card.percentage + '%'}
+                                        </div>
+                                        <div class="ml-2 flex items-baseline text-sm font-semibold ${trendColor}">
+                                            ${trendIcon}
+                                            <span class="sr-only">${card.trend === 'increase' ? 'Increased by' : 'Decreased by'}</span>
+                                            ${changeText}
+                                        </div>
+                                    </dd>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                cardsContainer.insertAdjacentHTML('beforeend', cardHtml);
+            });
+        }
+
+        // Initialize Charts
+        let ageGroupChart, genderChart, literacyChart, trendChart;
+
+        async function initializeCharts() {
+            const data = await fetchData("/api/report-data");
+            if (!data) return;
+
+            // Destroy existing charts if they exist to prevent duplicates
+            if (ageGroupChart) ageGroupChart.destroy();
+            if (genderChart) genderChart.destroy();
+            if (literacyChart) literacyChart.destroy();
+            if (trendChart) trendChart.destroy();
+
+            // Age Group Chart
+            const ageGroupCtx = document.getElementById('ageGroupChart').getContext('2d');
+            ageGroupChart = new Chart(ageGroupCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.age_group_data.labels,
+                    datasets: [
+                        {
+                            label: 'Vaccinated',
+                            data: data.age_group_data.vaccinated,
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Not Vaccinated',
+                            data: data.age_group_data.not_vaccinated,
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Gender Chart
+            const genderCtx = document.getElementById('genderChart').getContext('2d');
+            genderChart = new Chart(genderCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.gender_data.labels,
+                    datasets: [{
+                        data: data.gender_data.data,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(153, 102, 255, 0.6)',
+                            'rgba(201, 203, 207, 0.6)'
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(201, 203, 207, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Literacy Chart
+            const literacyCtx = document.getElementById('literacyChart').getContext('2d');
+            literacyChart = new Chart(literacyCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.literacy_data.labels,
+                    datasets: [
+                        {
+                            label: 'Vaccinated',
+                            data: data.literacy_data.vaccinated,
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Not Vaccinated',
+                            data: data.literacy_data.not_vaccinated,
+                            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Trend Chart
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: data.trend_data.labels,
+                    datasets: [
+                        {
+                            label: 'Fully Vaccinated',
+                            data: data.trend_data.fully_vaccinated,
+                            fill: false,
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            tension: 0.1,
+                            borderWidth: 4
+                        },
+                        {
+                            label: 'Partially Vaccinated',
+                            data: data.trend_data.partially_vaccinated,
+                            fill: false,
+                            backgroundColor: 'rgba(255, 206, 86, 0.6)',
+                            borderColor: 'rgba(255, 206, 86, 1)',
+                            tension: 0.1,
+                            borderWidth: 4
+                        },
+                        {
+                            label: 'Not Vaccinated',
+                            data: data.trend_data.not_vaccinated,
+                            fill: false,
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            tension: 0.1,
+                            borderWidth: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize Leaflet Map
+        let map;
+        async function initializeMap() {
+            if (map) {
+                map.remove(); // Destroy existing map instance if it exists
+            }
+            map = L.map('map').setView([20.5937, 78.9629], 5); // Centered on India
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            const locations = await fetchData("/map/clusters"); // Fetch actual location counts
+            if (!locations) return;
+
+            // Dummy coordinates for locations not explicitly mapped
+            const dummyCoords = {
+                "Mumbai": [19.076, 72.8777], "Bengaluru": [12.9716, 77.5946], "Chennai": [13.0827, 80.2707],
+                "Kolkata": [22.5726, 88.3639], "Delhi": [28.6139, 77.209], "Hyderabad": [17.385, 78.4867],
+                "Ahmedabad": [23.0225, 72.5714], "Pune": [18.5204, 73.8567], "Jaipur": [26.9124, 75.7873],
+                "Lucknow": [26.8467, 80.9462], "Bhopal": [23.2599, 77.4126], "Patna": [25.5941, 85.1376],
+                "Thiruvananthapuram": [8.5241, 76.9366], "Ranchi": [23.3441, 85.3096], "Raipur": [21.2514, 81.6296],
+                "Chandigarh": [30.7333, 76.7794], "Dehradun": [30.3165, 78.0322], "Imphal": [24.817, 93.95],
+                "Shillong": [25.5788, 91.8933], "Aizawl": [23.7271, 92.7176], "Nagpur": [21.1458, 79.0882],
+                "Visakhapatnam": [17.6868, 83.2185], "Guwahati": [26.1445, 91.7362], "Jammu": [32.7266, 74.857],
+                "Shimla": [31.1048, 77.1734], "Panaji": [15.4909, 73.8328], "Agartala": [23.8315, 91.2868],
+                "Itanagar": [27.0844, 93.626], "Gangtok": [27.3389, 88.6065], "Port Blair": [11.6234, 92.7265],
+                "Gwalior": [26.2183, 78.1828], "Kanpur": [26.4499, 80.3319], "Varanasi": [25.3176, 82.9739],
+                "Allahabad": [25.4358, 81.8463], "Meerut": [28.9845, 77.7033], "Gurgaon": [28.4595, 77.0266],
+                "Noida": [28.5355, 77.391], "Amritsar": [31.634, 74.8723], "Ludhiana": [30.9, 75.8573],
+                "Jalandhar": [31.326, 75.5762], "Udaipur": [24.5854, 73.7125], "Jodhpur": [26.2389, 73.0243],
+                "Ajmer": [26.4499, 74.6399], "Surat": [21.1702, 72.8311], "Vadodara": [22.3072, 73.1812],
+                "Rajkot": [22.3039, 70.8022], "Nashik": [19.9975, 73.7898], "Aurangabad": [19.8762, 75.3433],
+                "Solapur": [17.6599, 75.9064], "Nagapattinam": [10.763, 79.84], "Madurai": [9.9252, 78.1198],
+                "Coimbatore": [11.0168, 76.9558], "Salem": [11.6643, 78.146], "Tirunelveli": [8.7139, 77.7567],
+                "Tiruchirappalli": [10.7905, 78.7047], "Warangal": [17.9784, 79.5941], "Nizamabad": [18.6725, 78.098],
+                "Karimnagar": [18.4392, 79.1325], "Bilaspur": [22.0797, 82.1547], "Korba": [22.345, 82.7518],
+                "Durg": [21.1904, 81.2849], "Jabalpur": [23.1815, 79.9864], "Indore": [22.7196, 75.8577],
+                "Satna": [24.6005, 80.8322], "Rewa": [24.5303, 81.291], "Bhagalpur": [25.3872, 87.0145],
+                "Gaya": [24.7969, 85.0039], "Muzaffarpur": [26.1228, 85.3906], "Darbhanga": [26.1527, 85.906],
+                "Purnia": [25.7771, 87.4753], "Baroda": [22.31, 73.1812], "Dhanbad": [23.801, 86.443],
+                "Asansol": [23.6833, 86.9833], "Bareilly": [28.367, 79.4304], "Aligarh": [27.8974, 78.088],
+                "Moradabad": [28.8386, 78.7768], "Ghaziabad": [28.6692, 77.4538], "Bhiwani": [28.793, 76.134],
+                "Rohtak": [28.8955, 76.5755], "Hisar": [29.1492, 75.755], "Ambala": [30.3752, 76.7821],
+                "Kurukshetra": [29.9695, 76.8165], "Rewari": [28.197, 76.6228], "Sonipat": [28.9959, 77.0114],
+                "Panipat": [29.387, 76.969], "Palwal": [28.144, 77.3306], "Yamunanagar": [30.1286, 77.2838],
+                "Kaithal": [29.8014, 76.3993], "Jhansi": [25.4484, 78.5696], "Etawah": [26.7857, 79.018],
+                "Faizabad": [26.7755, 82.148], "Mathura": [27.4924, 77.6737], "Firozabad": [27.1509, 78.3957],
+                "Sitapur": [27.5674, 80.686], "Shahjahanpur": [27.8815, 79.9126], "Banda": [25.4753, 80.3257],
+                "Raebareli": [26.2309, 81.2404], "Lakhimpur": [27.946, 80.4702], "Barabanki": [26.934, 81.1903],
+                "Unnao": [26.5479, 80.4878],
+            };
+
+            locations.forEach(loc => {
+                // Use dummyCoords if available, otherwise generate random within India bounds
+                let coords = dummyCoords[loc.location] || [
+                    (Math.random() * (35 - 8) + 8), // Latitude roughly for India
+                    (Math.random() * (95 - 68) + 68) // Longitude roughly for India
+                ];
+                
+                // Simple heuristic for coverage based on count for demo
+                let coverage = Math.min(100, 50 + loc.count * 5); // Adjust multiplier as needed
+                let color = coverage > 75 ? 'green' : coverage > 50 ? 'yellow' : 'red';
+
+                L.circle(coords, {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.5,
+                    radius: 5000 + (loc.count * 100) // Larger radius for more records
+                }).addTo(map)
+                  .bindPopup(`<b>${loc.location}</b><br>Records: ${loc.count}<br>Est. Coverage: ${coverage.toFixed(1)}%`);
+            });
+
+            // Add legend
+            let legend = L.control({position: 'bottomright'});
+            legend.onAdd = function(map) {
+                let div = L.DomUtil.create('div', 'info legend bg-gray-800 p-4 rounded shadow-md text-white');
+                div.innerHTML = `
+                    <h4 class="font-medium mb-2">Coverage Legend</h4>
+                    <div class="flex items-center mb-1">
+                        <span class="w-4 h-4 inline-block mr-2 bg-green-500 rounded-sm"></span>
+                        <span>High Coverage</span>
+                    </div>
+                    <div class="flex items-center mb-1">
+                        <span class="w-4 h-4 inline-block mr-2 bg-yellow-500 rounded-sm"></span>
+                        <span>Medium Coverage</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="w-4 h-4 inline-block mr-2 bg-red-500 rounded-sm"></span>
+                        <span>Low Coverage</span>
+                    </div>
+                `;
+                return div;
+            };
+            legend.addTo(map);
+
+            window.addEventListener('resize', () => {
+                map.invalidateSize(false);
+            });
+        }
+
+        // Load Vaccine Stock Updates
+        async function loadVaccineStock() {
+            const stockData = await fetchData("/api/vaccine-stock");
+            if (!stockData) return;
+
+            const stockList = document.getElementById('vaccine-stock-list');
+            stockList.innerHTML = ''; // Clear existing items
+
+            if (stockData.length === 0) {
+                stockList.innerHTML = '<li class="text-gray-400">No recent stock updates.</li>';
+                return;
+            }
+
+            stockData.forEach(item => {
+                const listItem = `
+                    <li class="bg-emerald-100 text-emerald-900 px-4 py-2 rounded shadow-sm">
+                        📦 ${item.doses} doses of ${item.type} added - ${item.date}
+                    </li>
+                `;
+                stockList.insertAdjacentHTML('beforeend', listItem);
+            });
+        }
+
+        function showDataEntryModal() {
+    document.getElementById('dataEntryModal').classList.remove('hidden');
+    populateDiseaseDropdown();
+}
+
+function hideDataEntryModal() {
+    document.getElementById('dataEntryModal').classList.add('hidden');
+}
+
+async function populateDiseaseDropdown() {
+    const select = document.getElementById('vaccineType');
+    const diseases = await fetchData("/diseases/all");
+    select.innerHTML = '';
+    
+    Object.keys(diseases).forEach(disease => {
+        const option = document.createElement('option');
+        option.value = disease;
+        option.textContent = disease;
+        select.appendChild(option);
+    });
+}
+
+async function submitVaccination() {
+    const formData = {
+        name: document.getElementById('personName').value,
+        age_group: document.getElementById('ageGroup').value,
+        location: document.getElementById('location').value,
+        gender: document.getElementById('gender').value, // Add this line
+        vaccines: [{
+            disease: document.getElementById('vaccineType').value,
+            vaccine_name: document.getElementById('vaccineName').value,
+            dose_1_date: document.getElementById('dose1Date').value,
+            dose_2_date: document.getElementById('dose2Date').value || null,
+            booster_date: document.getElementById('boosterDate').value || null
+        }]
+    };
+
+    try {
+        const response = await fetch(`${BASE_URL}/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Submission failed');
+        }
+
+        const result = await response.json();
+        alert(`Success! Record ID: ${result.id}`);
+        hideDataEntryModal();
+        loadAllRecords(); // Refresh the list
+    } catch (error) {
+        console.error('Submission error:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+        // Populate Disease Select for Stats
+        async function populateDiseaseSelect() {
+            const diseaseSelect = document.getElementById('diseaseSelect');
+            const diseases = await fetchData("/diseases/all");
+            if (!diseases) return;
+
+            diseaseSelect.innerHTML = '<option value="">Select Disease</option>';
+            for (const disease in diseases) {
+                const option = document.createElement('option');
+                option.value = disease;
+                option.textContent = disease;
+                diseaseSelect.appendChild(option);
+            }
+        }
+
+function simulateOutbreakRisk() {
+    document.getElementById('outbreakModal').classList.remove('hidden');
+    // You can add actual simulation logic here
+}
+
+function hideOutbreakModal() {
+    document.getElementById('outbreakModal').classList.add('hidden');
+}
+
+function downloadSimulationReport() {
+    // Mock implementation - would generate PDF/CSV in real app
+    alert("This would download a report in a real implementation");
+}
+
+        // Get Disease Stats
+        async function getDiseaseStats() {
+            const disease = document.getElementById('diseaseSelect').value;
+            const resultDiv = document.getElementById('diseaseStatsResult');
+            if (!disease) {
+                resultDiv.textContent = "Please select a disease.";
+                return;
+            }
+            const stats = await fetchData(`/vaccines/stats?disease=${encodeURIComponent(disease)}`);
+            if (stats) {
+                resultDiv.textContent = `Total records for ${stats.disease}: ${stats.total_records}`;
+            } else {
+                resultDiv.textContent = "Could not fetch stats for this disease.";
+            }
+        }
+
+        // Get Group By Stats
+        async function getGroupByStats() {
+            const field = document.getElementById('groupByFieldSelect').value;
+            const resultDiv = document.getElementById('groupByStatsResult');
+            const stats = await fetchData(`/vaccines/stats/groupby?field=${encodeURIComponent(field)}`);
+            if (stats) {
+                resultDiv.innerHTML = '';
+                if (stats.length === 0) {
+                    resultDiv.textContent = `No data found to group by ${field}.`;
+                    return;
+                }
+                stats.forEach(item => {
+                    resultDiv.innerHTML += `<p>${item.field}: ${item.count} records</p>`;
+                });
+            } else {
+                resultDiv.textContent = "Could not fetch group by stats.";
+            }
+        }
+
+        // Load All Records
+        async function loadAllRecords() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const recordsTableBody = document.getElementById('recordsTableBody');
+            recordsTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4">Loading records...</td></tr>';
+
+            let url = "/records";
+            const params = new URLSearchParams();
+            if (startDate) params.append('start', startDate);
+            if (endDate) params.append('end', endDate);
+            if (startDate || endDate) url += `?${params.toString()}`;
+
+            const records = await fetchData(url);
+            recordsTableBody.innerHTML = ''; // Clear loading message
+
+            if (!records || records.length === 0) {
+                recordsTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4">No records found.</td></tr>';
+                return;
+            }
+
+            records.forEach(record => {
+                const vaccines = record.vaccines || [];
+                if (vaccines.length === 0) {
+                    // Handle records with no vaccine data explicitly
+                    const row = `
+                        <tr>
+                            <td>${record._id || 'N/A'}</td>
+                            <td>${record.name || 'N/A'}</td>
+                            <td>${record.age_group || 'N/A'}</td>
+                            <td>${record.location || 'N/A'}</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>${record.timestamp ? new Date(record.timestamp).toLocaleString() : 'N/A'}</td>
+                        </tr>
+                    `;
+                    recordsTableBody.insertAdjacentHTML('beforeend', row);
+                } else {
+                    vaccines.forEach(vaccine => {
+                        const row = `
+                            <tr>
+                                <td>${record._id || 'N/A'}</td>
+                                <td>${record.name || 'N/A'}</td>
+                                <td>${record.age_group || 'N/A'}</td>
+                                <td>${record.location || 'N/A'}</td>
+                                <td>${vaccine.disease || 'N/A'}</td>
+                                <td>${vaccine.vaccine_name || 'N/A'}</td>
+                                <td>${vaccine.dose_1_date || 'N/A'}</td>
+                                <td>${vaccine.dose_2_date || 'N/A'}</td>
+                                <td>${vaccine.booster_date || 'N/A'}</td>
+                                <td>${record.timestamp ? new Date(record.timestamp).toLocaleString() : 'N/A'}</td>
+                            </tr>
+                        `;
+                        recordsTableBody.insertAdjacentHTML('beforeend', row);
+                    });
+                }
+            });
+        }
+
+        // Export Records to CSV
+        async function exportRecords() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            let url = "/records/export";
+            const params = new URLSearchParams();
+            if (startDate) params.append('start', startDate);
+            if (endDate) params.append('end', endDate);
+            if (startDate || endDate) url += `?${params.toString()}`;
+
+            const csvBlob = await fetchData(url);
+            if (csvBlob) {
+                const url = window.URL.createObjectURL(csvBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'vaccination_records.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                alert("CSV file downloaded successfully!");
+            } else {
+                alert("Failed to download CSV. No records found or an error occurred.");
+            }
+        }
+
+        // Load Hesitancy Responses
+        async function loadHesitancyResponses() {
+            const responsesTableBody = document.getElementById('hesitancyResponsesTableBody');
+            responsesTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Loading responses...</td></tr>';
+
+            const responses = await fetchData("/hesitancy-responses");
+            responsesTableBody.innerHTML = ''; // Clear loading message
+
+            if (!responses || responses.length === 0) {
+                responsesTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4">No hesitancy feedback responses found.</td></tr>';
+                return;
+            }
+
+            responses.forEach(response => {
+                const row = `
+                    <tr>
+                        <td>${response._id || 'N/A'}</td>
+                        <td>${response.age_group || 'N/A'}</td>
+                        <td>${response.reason || 'N/A'}</td>
+                        <td>${response.timestamp ? new Date(response.timestamp).toLocaleString() : 'N/A'}</td>
+                    </tr>
+                `;
+                responsesTableBody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        async function submitHesitancyForm(event) {
+    event.preventDefault(); // This prevents the default form submission
+    
+    const ageGroup = document.getElementById('ageGroupHesitancy').value;
+    const reason = document.getElementById('reason').value;
+
+    if (!ageGroup || !reason.trim()) {
+        alert("Please select your age group and provide a reason.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${BASE_URL}/submit-hesitancy`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: `age_group=${encodeURIComponent(ageGroup)}&reason=${encodeURIComponent(reason)}`
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert(result.message || "Thank you for your feedback!");
+            document.getElementById('hesitancyForm').reset();
+            loadHesitancyResponses(); // Refresh the displayed responses
+        } else {
+            const error = await response.json();
+            alert(error.detail || "Failed to submit feedback");
+        }
+    } catch (error) {
+        console.error("Error submitting hesitancy form:", error);
+        alert("Network error. Please try again later.");
+    }
+}
+
+
+        // Delete Record (Admin Panel)
+        async function deleteRecord() {
+            const recordId = document.getElementById('recordIdToDelete').value;
+            const adminPassword = document.getElementById('adminPassword').value;
+
+            if (!recordId || !adminPassword) {
+                alert("Please enter both Record ID and Admin Password.");
+                return;
+            }
+
+            const confirmDelete = confirm(`Are you sure you want to delete record with ID: ${recordId}? This action cannot be undone.`);
+            if (!confirmDelete) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/delete/${recordId}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ password: adminPassword })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(data.message || "Record deleted successfully!");
+                    document.getElementById('recordIdToDelete').value = '';
+                    document.getElementById('adminPassword').value = '';
+                    // Refresh relevant sections after deletion
+                    loadAllRecords();
+                    loadDashboardSummary();
+                    initializeCharts();
+                    initializeMap();
+                } else {
+                    alert(data.detail || data.message || "Failed to delete record.");
+                }
+            } catch (error) {
+                console.error("Network error during record deletion:", error);
+                alert("Network error. Please try again later. Check console for details.");
+            }
+        }
+
+        // Chart.js plugin for glow effect (optional, for visual flair)
+        Chart.defaults.datasets.line.pointRadius = 5;
+        Chart.defaults.datasets.line.pointHoverRadius = 7;
+        Chart.defaults.datasets.line.borderJoinStyle = 'round';
+
+        Chart.register({
+            id: 'glow',
+            beforeDraw: function(chart) {
+                const ctx = chart.ctx;
+                chart.data.datasets.forEach((dataset, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    if (!meta.hidden) {
+                        ctx.save();
+                        ctx.shadowColor = dataset.borderColor || 'rgba(255,255,255,0.8)';
+                        ctx.shadowBlur = 15;
+                        ctx.lineWidth = dataset.borderWidth;
+                        ctx.strokeStyle = dataset.borderColor;
+                        ctx.beginPath();
+                        meta.data.forEach((point, index) => {
+                            if (index === 0) {
+                                ctx.moveTo(point.x, point.y);
+                            } else {
+                                ctx.lineTo(point.x, point.y);
+                            }
+                        });
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                });
+            }
+        });
+
+        // Initial data loading on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardSummary();
+            initializeCharts();
+            initializeMap();
+            loadVaccineStock();
+            populateDiseaseSelect(); // Populate disease dropdown
+            loadAllRecords(); // Load all records initially
+            loadHesitancyResponses(); // Load hesitancy responses initially
+                document.querySelector('button[onclick="showDataEntryModal()"]')
+        .addEventListener('click', showDataEntryModal);
+    
+    document.querySelector('button[onclick="simulateOutbreakRisk()"]')
+        .addEventListener('click', simulateOutbreakRisk);
+
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+motor
+pandas
+python-dotenv
+pymongo
+python-multipart
+jinja2
