@@ -2,7 +2,7 @@
 
 A comprehensive system for tracking community vaccination coverage, visualizing data, and managing vaccination records.
 
-![Dashboard Screenshot](https://prnt.sc/55UqXUGgY0-H)
+![[Dashboard Screenshot]](https://prnt.sc/55UqXUGgY0-H)
 
 ## Features
 
